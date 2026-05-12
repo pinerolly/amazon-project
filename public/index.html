@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Amazon Relay Orders</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: #f5f5f5;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 30px;
+      text-align: center;
+    }
+
+    .header h1 {
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+
+    .header p {
+      opacity: 0.9;
+      font-size: 14px;
+    }
+
+    .controls {
+      padding: 20px 30px;
+      background: #f9f9f9;
+      border-bottom: 1px solid #e0e0e0;
+      display: flex;
+      gap: 15px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .control-group {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .multiselect {
+      position: relative;
+      min-width: 300px;
+    }
+
+    .multiselect-trigger {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 14px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      background: white;
+      cursor: pointer;
+      font-size: 14px;
+      color: #333;
+    }
+
+    .multiselect-trigger:hover {
+      border-color: #999;
+    }
+
+    .multiselect-trigger::after {
+      content: '▾';
+      font-size: 12px;
+      transition: transform 0.2s ease;
+      margin-left: 10px;
+    }
+
+    .multiselect.open .multiselect-trigger::after {
+      transform: rotate(180deg);
+    }
+
+    .multiselect-options {
+      position: absolute;
+      width: 100%;
+      margin-top: 6px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      background: white;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+      z-index: 10;
+      max-height: 240px;
+      overflow-y: auto;
+      display: none;
+    }
+
+    .multiselect.open .multiselect-options {
+      display: block;
+    }
+
+    .multiselect-option {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 14px;
+      cursor: pointer;
+      transition: background 0.15s ease;
+      font-size: 14px;
+      color: #333;
+    }
+
+    .multiselect-option:hover {
+      background: #f5f5f5;
+    }
+
+    .multiselect-option.selected {
+      background: #eef2ff;
+    }
+
+    .multiselect-option .checkmark {
+      width: 16px;
+      height: 16px;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: #2d6cdf;
+      font-size: 12px;
+    }
+
+    .multiselect-option.selected .checkmark {
+      background: #2d6cdf;
+      color: white;
+      border-color: #2d6cdf;
+    }
+
+    .multiselect-option .label {
+      flex: 1;
+      text-align: left;
+    }
+
+    #clearBtn {
+      padding: 8px 12px;
+      background: #f5f5f5;
+      color: #666;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    #clearBtn:hover {
+      background: #e0e0e0;
+      border-color: #ccc;
+    }
+
+    button {
+      padding: 8px 16px;
+      background: #667eea;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    button:hover {
+      background: #5568d3;
+    }
+
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+
+    .status {
+      font-size: 12px;
+      color: #666;
+      margin-left: auto;
+    }
+
+    .status.loading {
+      color: #667eea;
+      font-weight: 500;
+    }
+
+    .content {
+      padding: 30px;
+      min-height: 400px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    thead {
+      background: #f5f5f5;
+      border-bottom: 2px solid #ddd;
+    }
+
+    th {
+      padding: 12px;
+      text-align: left;
+      font-weight: 600;
+      color: #333;
+    }
+
+    td {
+      padding: 12px;
+      border-bottom: 1px solid #f0f0f0;
+      color: #666;
+    }
+
+    tbody tr:hover {
+      background: #f9f9f9;
+    }
+
+    .no-results {
+      text-align: center;
+      padding: 40px 20px;
+      color: #999;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 3px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .badge.oneway {
+      background: #e3f2fd;
+      color: #1976d2;
+    }
+
+    .badge.roundtrip {
+      background: #f3e5f5;
+      color: #7b1fa2;
+    }
+
+    .distance {
+      font-weight: 500;
+      color: #d32f2f;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>📦 Amazon Relay Orders</h1>
+      <p>Filter and view available orders by location</p>
+    </div>
+
+    <div class="controls">
+      <div class="control-group">
+        <label for="locationTrigger">Locations:</label>
+        <div class="location-container">
+          <div class="multiselect" id="locationMultiselect">
+            <button type="button" class="multiselect-trigger" id="locationTrigger">All Locations</button>
+            <div class="multiselect-options" id="locationOptions"></div>
+          </div>
+          <button id="clearBtn" onclick="clearSelection()">Clear Selection</button>
+        </div>
+      </div>
+      <button id="refreshBtn" onclick="refreshData()">🔄 Refresh Data</button>
+      <div class="status" id="status"></div>
+    </div>
+
+    <div class="content">
+      <table id="ordersTable">
+        <thead>
+          <tr>
+            <th>Location</th>
+            <th>Date</th>
+            <th>Start Time</th>
+            <th>Distance</th>
+            <th>Equipment</th>
+            <th>Leg</th>
+            <th>Duration</th>
+          </tr>
+        </thead>
+        <tbody id="ordersBody">
+          <tr>
+            <td colspan="7" class="no-results">No data loaded. Click "Refresh Data" to scrape orders.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="footer" id="footerInfo" style="padding:12px 30px;color:#666;font-size:13px;">
+      Locations: 0 • Orders: 0
+    </div>
+  </div>
+
+  <script>
+    let autoRefreshTimer = null;
+    const AUTO_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+
+    function updateTriggerLabel() {
+      const selected = getSelectedLocations();
+      const trigger = document.getElementById('locationTrigger');
+      if (selected.length === 0 || selected.includes('all')) {
+        trigger.textContent = 'All Locations';
+      } else {
+        // Show the actual selected location names
+        trigger.textContent = selected.join(', ');
+      }
+    }
+
+    async function loadLocations(preserveSelected = null) {
+      try {
+        const response = await fetch('/api/locations');
+        const locations = await response.json();
+        const optionsContainer = document.getElementById('locationOptions');
+        optionsContainer.innerHTML = '';
+
+        // Determine which locations should be marked selected.
+        // preserveSelected can be null (don't preserve), ['all'], or list of location names.
+        const selectedSet = preserveSelected && Array.isArray(preserveSelected)
+          ? new Set(preserveSelected)
+          : null;
+
+        const allOption = document.createElement('div');
+        allOption.className = 'multiselect-option';
+        allOption.dataset.value = 'all';
+        allOption.innerHTML = '<span class="label">All Locations</span><span class="checkmark">✓</span>';
+        // If nothing to preserve, default to 'all' selected
+        if (!selectedSet) {
+          allOption.classList.add('selected');
+        } else if (selectedSet.has('all')) {
+          allOption.classList.add('selected');
+        }
+        optionsContainer.appendChild(allOption);
+
+        locations.forEach(location => {
+          const option = document.createElement('div');
+          option.className = 'multiselect-option';
+          option.dataset.value = location;
+          option.innerHTML = `<span class="label">${location}</span><span class="checkmark"></span>`;
+          if (selectedSet && selectedSet.has(location)) {
+            option.classList.add('selected');
+          }
+          optionsContainer.appendChild(option);
+        });
+
+        // If we tried to preserve a specific selection but none of those locations exist anymore,
+        // ensure at least 'all' is selected to avoid empty selection state.
+        if (selectedSet && !selectedSet.has('all')) {
+          const anySelected = Array.from(optionsContainer.querySelectorAll('.multiselect-option'))
+            .some(opt => opt.dataset.value !== 'all' && opt.classList.contains('selected'));
+          if (!anySelected) {
+            const allOpt = optionsContainer.querySelector('.multiselect-option[data-value="all"]');
+            if (allOpt) {
+              allOpt.classList.add('selected');
+            }
+          }
+        }
+
+        console.log('Locations loaded:', locations);
+        updateTriggerLabel();
+      } catch (error) {
+        console.error('Error loading locations:', error);
+      }
+    }
+
+    function getSelectedLocations() {
+      const options = Array.from(document.querySelectorAll('.multiselect-option.selected'));
+      const values = options.map(option => option.dataset.value);
+      // Filter out 'all' - only return specific locations if any are selected
+      const specificLocations = values.filter(v => v !== 'all');
+      return specificLocations.length > 0 ? specificLocations : ['all'];
+    }
+
+    function toggleLocation(value) {
+      const options = Array.from(document.querySelectorAll('.multiselect-option'));
+      const target = options.find(option => option.dataset.value === value);
+      if (!target) return;
+
+      if (value === 'all') {
+        // When "All Locations" is clicked, deselect all others
+        options.forEach(option => {
+          if (option.dataset.value !== 'all') {
+            option.classList.remove('selected');
+          }
+        });
+        target.classList.add('selected');
+      } else {
+        // When a specific location is clicked
+        const allOption = options.find(option => option.dataset.value === 'all');
+        target.classList.toggle('selected');
+        // Always remove 'all' when a specific location is selected
+        if (allOption) allOption.classList.remove('selected');
+
+        // If no specific locations are selected, reselect 'all'
+        const anySelected = options.some(option => option.dataset.value !== 'all' && option.classList.contains('selected'));
+        if (!anySelected && allOption) {
+          allOption.classList.add('selected');
+        }
+      }
+
+      updateTriggerLabel();
+      const selectedLocations = getSelectedLocations();
+      console.log('Selected locations:', selectedLocations);
+      loadOrders(selectedLocations);
+      // If auto-refresh is enabled, restart it for the newly selected set
+      if (autoRefreshTimer) startAutoRefresh();
+    }
+
+    function clearSelection() {
+      const options = Array.from(document.querySelectorAll('.multiselect-option'));
+      options.forEach(option => option.classList.remove('selected'));
+      const allOption = options.find(option => option.dataset.value === 'all');
+      if (allOption) allOption.classList.add('selected');
+      updateTriggerLabel();
+      loadOrders(['all']);
+      stopAutoRefresh();
+    }
+
+    async function loadOrders(locations = ['all']) {
+      try {
+        let url = '/api/orders';
+        if (!locations.includes('all') && locations.length > 0) {
+          // Send locations as a JSON-encoded array to avoid collisions with commas in names
+          const encoded = encodeURIComponent(JSON.stringify(locations));
+          url = `/api/orders?locations=${encoded}`;
+        }
+        console.log('Loading orders from URL:', url, 'Locations:', locations);
+        const response = await fetch(url);
+        const orders = await response.json();
+        console.log('Received orders:', orders);
+        displayOrders(orders);
+      } catch (error) {
+        console.error('Error loading orders:', error);
+      }
+    }
+
+    function displayOrders(orders) {
+      const tbody = document.getElementById('ordersBody');
+      if (orders.length === 0) {
+        const selectedLocations = getSelectedLocations();
+        const message = selectedLocations.includes('all') || selectedLocations.length === 0
+          ? 'No orders found.'
+          : `No orders found for selected locations: ${selectedLocations.join(', ')}`;
+        tbody.innerHTML = `<tr><td colspan="7" class="no-results">${message}</td></tr>`;
+        // update footer counts
+        const footer = document.getElementById('footerInfo');
+        if (footer) footer.textContent = `Locations: 0 • Orders: 0`;
+        return;
+      }
+      tbody.innerHTML = orders.map(order => `
+        <tr>
+          <td><strong>${order.location}</strong></td>
+          <td>${order.date}</td>
+          <td>${order.startTime}</td>
+          <td><span class="distance">${order.distance}</span></td>
+          <td>${order.equipment}</td>
+          <td><span class="badge ${order.leg.toLowerCase().replace('-', '')}">${order.leg}</span></td>
+          <td>${order.duration}</td>
+        </tr>
+      `).join('');
+      // update footer with unique location count and total orders
+      const uniqueLocations = new Set(orders.map(o => o.location)).size;
+      const footer = document.getElementById('footerInfo');
+      if (footer) footer.textContent = `Locations: ${uniqueLocations} • Orders: ${orders.length}`;
+    }
+
+    async function refreshData() {
+      const btn = document.getElementById('refreshBtn');
+      const status = document.getElementById('status');
+      btn.disabled = true;
+      status.textContent = 'Scraping orders...';
+      status.className = 'status loading';
+      try {
+        const response = await fetch('/api/refresh', { method: 'POST' });
+        const data = await response.json();
+        if (data.success) {
+          status.textContent = `✓ Scraped ${data.count} orders`;
+          status.className = 'status';
+          // preserve the user's current selection while reloading locations
+          const selectedLocations = getSelectedLocations();
+          await loadLocations(selectedLocations);
+          await loadOrders(selectedLocations);
+          // If user selected specific locations, start auto-refresh in background
+          if (!selectedLocations.includes('all')) {
+            startAutoRefresh();
+          } else {
+            stopAutoRefresh();
+          }
+        } else {
+          status.textContent = `✗ Error: ${data.error}`;
+          status.className = 'status';
+        }
+      } catch (error) {
+        status.textContent = `✗ Error: ${error.message}`;
+        status.className = 'status';
+      } finally {
+        btn.disabled = false;
+      }
+    }
+
+      function startAutoRefresh() {
+        stopAutoRefresh();
+        const selected = getSelectedLocations();
+        if (!selected || selected.length === 0 || selected.includes('all')) return;
+        const status = document.getElementById('status');
+        const btn = document.getElementById('refreshBtn');
+        btn.textContent = '🔄 Refresh Data (Auto each 5 min)';
+        autoRefreshTimer = setInterval(async () => {
+          status.textContent = `Auto-refreshing (${new Date().toLocaleTimeString()})...`;
+          status.className = 'status loading';
+          try {
+            const resp = await fetch('/api/refresh', { method: 'POST' });
+            const data = await resp.json();
+            if (data.success) {
+              // preserve current selection across location reloads during auto-refresh
+              const selectedNow = getSelectedLocations();
+              await loadLocations(selectedNow);
+              await loadOrders(selectedNow);
+              status.textContent = `✓ Auto-refreshed ${data.count} orders at ${new Date().toLocaleTimeString()}`;
+              status.className = 'status';
+            } else {
+              status.textContent = `✗ Auto-refresh error: ${data.error}`;
+              status.className = 'status';
+            }
+          } catch (e) {
+            status.textContent = `✗ Auto-refresh error: ${e.message}`;
+            status.className = 'status';
+          }
+        }, AUTO_INTERVAL_MS);
+      }
+
+      function stopAutoRefresh() {
+        if (autoRefreshTimer) {
+          clearInterval(autoRefreshTimer);
+          autoRefreshTimer = null;
+        }
+        const btn = document.getElementById('refreshBtn');
+        if (btn) btn.textContent = '🔄 Refresh Data';
+      }
+
+    document.getElementById('locationTrigger').addEventListener('click', () => {
+      document.getElementById('locationMultiselect').classList.toggle('open');
+    });
+
+    // Event delegation for location options
+    document.getElementById('locationOptions').addEventListener('click', (event) => {
+      const option = event.target.closest('.multiselect-option');
+      if (option) {
+        const value = option.dataset.value;
+        toggleLocation(value);
+      }
+    });
+
+    document.addEventListener('click', (event) => {
+      const multiselect = document.getElementById('locationMultiselect');
+      if (!multiselect.contains(event.target)) {
+        multiselect.classList.remove('open');
+      }
+    });
+
+    window.addEventListener('DOMContentLoaded', async () => {
+      const response = await fetch('/api/status');
+      const status = await response.json();
+      const statusDiv = document.getElementById('status');
+      if (status.ordersCount > 0) {
+        statusDiv.textContent = `${status.ordersCount} orders cached`;
+        await loadLocations();
+        const selectedLocations = getSelectedLocations();
+        await loadOrders(selectedLocations.length > 0 ? selectedLocations : ['all']);
+      }
+    });
+  </script>
+</body>
+</html>
