@@ -320,6 +320,18 @@
     // When true the app will auto-refresh even when 'All' is selected
     const FORCE_AUTO_REFRESH_FOR_ALL = true;
 
+    function formatTime(date) {
+      try {
+        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+      } catch (e) {
+        // fallback
+        const hh = String(date.getHours()).padStart(2, '0');
+        const mm = String(date.getMinutes()).padStart(2, '0');
+        const ss = String(date.getSeconds()).padStart(2, '0');
+        return `${hh}:${mm}:${ss}`;
+      }
+    }
+
     function updateTriggerLabel() {
       const selected = getSelectedLocations();
       const trigger = document.getElementById('locationTrigger');
@@ -533,7 +545,7 @@
         const btn = document.getElementById('refreshBtn');
         // keep the button label consistent (always shows Auto)
         autoRefreshTimer = setInterval(async () => {
-          status.textContent = `Auto-refreshing (${new Date().toLocaleTimeString()})...`;
+          status.textContent = `Auto-refreshing (${formatTime(new Date())})...`;
           status.className = 'status loading';
           try {
             const resp = await fetch('/api/refresh', { method: 'POST' });
@@ -543,7 +555,7 @@
               const selectedNow = getSelectedLocations();
               await loadLocations(selectedNow);
               await loadOrders(selectedNow);
-              status.textContent = `✓ Auto-refreshed ${data.count} orders at ${new Date().toLocaleTimeString()}`;
+              status.textContent = `✓ Auto-refreshed ${data.count} orders at ${formatTime(new Date())}`;
               status.className = 'status';
             } else {
               status.textContent = `✗ Auto-refresh error: ${data.error}`;
