@@ -1,0 +1,22 @@
+version: '3.8'
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped
+    volumes:
+      - ./:/usr/src/app            # Removed :ro here
+      - /usr/src/app/node_modules  # This creates the "safe" area for modules
+
+  scraper:
+    build: .
+    volumes:
+      - ./:/usr/src/app
+      - /usr/src/app/node_modules
+    command: ["node","script.js"]
+    stdin_open: true
+    tty: true
+    restart: "no"
