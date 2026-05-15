@@ -284,7 +284,7 @@
           <button id="clearBtn" onclick="clearSelection()">Clear Selection</button>
         </div>
       </div>
-      <button id="refreshBtn" onclick="refreshData()">🔄 Refresh Data</button>
+      <button id="refreshBtn" onclick="refreshData()">🔄 Refresh Data (Auto each 5 min)</button>
       <div class="status" id="status"></div>
     </div>
 
@@ -317,6 +317,8 @@
   <script>
     let autoRefreshTimer = null;
     const AUTO_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+    // When true the app will auto-refresh even when 'All' is selected
+    const FORCE_AUTO_REFRESH_FOR_ALL = true;
 
     function updateTriggerLabel() {
       const selected = getSelectedLocations();
@@ -354,6 +356,8 @@
         }
         optionsContainer.appendChild(allOption);
 
+        // Ensure locations are listed alphabetically (case-insensitive)
+        locations.sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
         locations.forEach(location => {
           const option = document.createElement('div');
           option.className = 'multiselect-option';
@@ -523,10 +527,11 @@
       function startAutoRefresh() {
         stopAutoRefresh();
         const selected = getSelectedLocations();
-        if (!selected || selected.length === 0 || selected.includes('all')) return;
+        if (!selected || selected.length === 0) return;
+        if (selected.includes('all') && !FORCE_AUTO_REFRESH_FOR_ALL) return;
         const status = document.getElementById('status');
         const btn = document.getElementById('refreshBtn');
-        btn.textContent = '🔄 Refresh Data (Auto each 5 min)';
+        // keep the button label consistent (always shows Auto)
         autoRefreshTimer = setInterval(async () => {
           status.textContent = `Auto-refreshing (${new Date().toLocaleTimeString()})...`;
           status.className = 'status loading';
@@ -556,8 +561,7 @@
           clearInterval(autoRefreshTimer);
           autoRefreshTimer = null;
         }
-        const btn = document.getElementById('refreshBtn');
-        if (btn) btn.textContent = '🔄 Refresh Data';
+        // Intentionally keep the button label showing the Auto state
       }
 
     document.getElementById('locationTrigger').addEventListener('click', () => {
@@ -581,15 +585,17 @@
     });
 
     window.addEventListener('DOMContentLoaded', async () => {
-      const response = await fetch('/api/status');
-      const status = await response.json();
       const statusDiv = document.getElementById('status');
-      if (status.ordersCount > 0) {
-        statusDiv.textContent = `${status.ordersCount} orders cached`;
-        await loadLocations();
-        const selectedLocations = getSelectedLocations();
-        await loadOrders(selectedLocations.length > 0 ? selectedLocations : ['all']);
-      }
+      // Ensure UI shows auto-refresh label from the start
+      const btn = document.getElementById('refreshBtn');
+      if (btn) btn.textContent = '🔄 Refresh Data (Auto each 5 min)';
+
+      // Load locations and trigger an initial scrape for all locations
+      await loadLocations(['all']);
+      // Run an initial scrape (this will populate cached orders and update UI)
+      await refreshData();
+      // Start automatic periodic refreshes (allowed for 'all' when FORCE flag true)
+      startAutoRefresh();
     });
   </script>
 </body>

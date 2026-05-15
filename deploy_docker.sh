@@ -62,11 +62,23 @@ if [[ -f "$APP_DIR/auth.json" ]]; then
   echo "Will mount auth.json into container"
 fi
 
+# Ensure locations.json exists and mount it so the container can persist discovered locations
+LOC_VOLUME_OPTS=""
+if [[ -f "$APP_DIR/locations.json" ]]; then
+  LOC_VOLUME_OPTS="-v $APP_DIR/locations.json:/usr/src/app/locations.json"
+  echo "Will mount locations.json into container (persisted)"
+else
+  echo "locations.json not found — creating empty locations.json to persist discovered locations"
+  echo '[]' > "$APP_DIR/locations.json"
+  LOC_VOLUME_OPTS="-v $APP_DIR/locations.json:/usr/src/app/locations.json"
+fi
+
 echo "Running container $CONTAINER_NAME"
 docker run -d \
   --env-file "$APP_DIR/.env" \
   -p 3000:3000 \
   $AUTH_VOLUME_OPTS \
+  $LOC_VOLUME_OPTS \
   --name "$CONTAINER_NAME" \
   --restart unless-stopped \
   "$IMAGE_NAME"

@@ -10,6 +10,31 @@ const PORT = 3000;
 
 let cachedOrders = [];
 let lastScrapeTime = null;
+const locationsFile = path.join(__dirname, 'locations.json');
+let savedLocations = [];
+
+function loadSavedLocations() {
+  try {
+    if (fs.existsSync(locationsFile)) {
+      const raw = fs.readFileSync(locationsFile, 'utf8');
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) savedLocations = parsed.filter(Boolean);
+    }
+  } catch (e) {
+    console.error('Error loading saved locations:', e.message);
+    savedLocations = [];
+  }
+}
+
+function saveSavedLocations() {
+  try {
+    fs.writeFileSync(locationsFile, JSON.stringify(savedLocations, null, 2), 'utf8');
+  } catch (e) {
+    console.error('Error saving locations:', e.message);
+  }
+}
+
+loadSavedLocations();
 
 // Normalize location strings to avoid duplicate filters like "MIAMI, FL" vs "MIAMI, FLORIDA"
 const stateMap = (() => {
@@ -203,10 +228,11 @@ async function scrapeOrders() {
 }
 
 app.get('/api/locations', (req, res) => {
-  // cachedOrders are normalized on refresh; still normalize defensively here
-  const locations = [...new Set(cachedOrders.map(order => normalizeLocation(order.location)))]
-    .filter(Boolean)
-    .sort();
+  // Return union of savedLocations (persisted) and currently scraped locations
+  const scraped = [...new Set(cachedOrders.map(order => normalizeLocation(order.location)))]
+    .filter(Boolean);
+  const unionSet = new Set(savedLocations.concat(scraped).filter(Boolean));
+  const locations = Array.from(unionSet).sort();
   res.json(locations);
 });
 
@@ -240,6 +266,14 @@ app.post('/api/refresh', async (req, res) => {
     // normalize locations in cached orders so UI and filters stay consistent
     cachedOrders = cachedOrders.map(o => ({ ...o, location: normalizeLocation(o.location) }));
     lastScrapeTime = new Date();
+    // Merge scraped locations into savedLocations and persist
+    const scraped = [...new Set(cachedOrders.map(order => normalizeLocation(order.location)))]
+      .filter(Boolean);
+    const beforeCount = savedLocations.length;
+    const merged = Array.from(new Set(savedLocations.concat(scraped))).filter(Boolean).sort();
+    savedLocations = merged;
+    if (savedLocations.length !== beforeCount) saveSavedLocations();
+
     res.json({ success: true, count: cachedOrders.length, timestamp: lastScrapeTime });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
